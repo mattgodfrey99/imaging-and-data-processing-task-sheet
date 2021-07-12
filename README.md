@@ -14,6 +14,8 @@ I then scaled my image between 0 and 1. This is because logarithmic scaling need
 
 The equation for linear scaling allows all data points to be scaled depending on their current value. For example, if you had a value at 255, it would first be re-scaled to 1 (as 255 is the maximum value). If you then subbed it into the logarithmic scaling equation, the numerator and denominator would be equal and therefore cancel out, and the new value would still be 1. If you have another value at 100, this would be scaled to 0.4, which when subbed into the scaling equation (with a value of alpha = 5) would return 0.6. The lower valued greyscale pixels are increased depending on how low they already are. The higher the value of alpha used, the brighter the image becomes overall. You want to find a good balance between making the image clearer, but not making every element so bright the image looks bad. This works very well for my chosen image, as the greyscale levels are distributed up to the 255 level.
 
+![Greyscale](/Images/greyscale_enhancement.png)
+
 ### Image Thresholding
 
 I chose an image with a lot of large, block colours so that the thresholding is more obvious. For example, the image contains the sea, sky, trees, and a white building. 
@@ -24,6 +26,8 @@ Initially, I did not set the image matrix elements all to 0 before setting the v
 I also didn't initially have the ‘and’ term in finding these pixel coordinates. This caused an issue as there may be an area in which one colour channel threshold criteria is met at a specific pixel, but the same pixel in the other two channels does not meet the threshold criteria. This would mean that the colours I wanted to be thresholded are, but then there are also other patches of individual colours that met their own criteria.
 
 For an example of thresholding, to separate most of the white building in the image, set the lower threshold for all 3 channels to about 190. The threshold values currently in the code should pick out the ocean.
+
+![Segmentation](/Images/segmentation.png)
 
 ### Edge Detection
 
@@ -36,11 +40,15 @@ To combine the horizontal and vertical edges, both are squared, summed together,
 
 The property of having an image slightly smaller than the original can be fixed by including padding. This is just adding zeros around the perimeter of the original image, so that the edge detection image is the same size as the original one [2].
 
+![edge1](/Images/edge_detection.png)
+
 Other more efficient techniques can be used to detect the edges of an image, such as canny edge detection. This works similar to my code, but with a few differences. A Gaussian filter is applied to the image beforehand to remove some noise, and the edge filters are applied just like before. Non-maximum suppression and Hysteresis are also applied essentially just removing parts of the image not deemed to be an edge and setting thresholds to change the sensitivity of what is detected to be a true edge. I implemented this using the cv2 library to show another method of edge detection.
 
 I picked my image specifically as it has a lot of obvious corner and edges, as well as text, that will be picked up well to display how the edge detection works. 
 
 (In order to plot the Canny Edge image, the module cv2 is needed)
+
+![edge2](/Images/edge_detection_cv2.png)
 
 ## Question 2: Affine Transformations
 
@@ -70,6 +78,8 @@ The next step was to loop this entire process over a range of frequencies to cre
 
 For creating the TFD, I would calculate the envelope of amplitude for my filtered signal at some frequency range, and then add this to an empty array. The envelope is going to be a 1x (length of time) array. So by repeating this process and stacking the envelope amplitudes on top of each other, you are building up how the amplitudes of each frequency range is varying over time.
 
+![tfd](/Images/TFD.png)
+
 ### Part B
 
 This uses similar methods to 3a with slight changes. I again defined all useful information for the signal (time, sample rate, time interval), but then I defined the same but for the length of a single task. The task takes 6.5s and is repeated 95 times, and the sample rate is 600Hz. So each task will be 3900 values in the signal brain array. I defined the same Butterworth filter function from 3a as it will be used a lot. The function defined after it however is what will be doing all the work, which looks at 6.5-second-long segments of the original signal to be picked out. With this new segmented signal 6.5 seconds long, the same steps as 3a are used.
@@ -79,6 +89,10 @@ The main difference comes when we use this function to create an average TFD. I 
 To calculate the baseline, the last second of the signal is used, when the subject is not performing a task. The baseline TFD is calculated using the same function as before, but over the last second. With this TFD for 1 second, an average of the baseline can be found. The original TFD baseline array will be (frequency range x sampling rate) in size. To create an average for what the frequency range strengths should be, I took the mean along the time axis. This mean value for each frequency then needs to stretch to be the same size as our original TFD for the tasks. This creates the same size array where the distribution of strengths of frequencies will be the same at every time, so basically an average of what the frequencies power distribution should be at any point in time. In order to calculate the percentage change I took the original image, divided it by the baseline array, multiplied it by 100, and then subtracted 100. So if a value in the task TFD was 20, and the associate value in the baseline was 10, this would result in a percentage change of 100.
 
 I have also allowed the user to select which signal to view the TFD for by selecting either signal at the start.
+
+![tfd2](/Images/TFD_signal_brain.png)
+
+![tfd3](/Images/TFD_signal_brain_percentage.png)
 
 ### Part C
 
@@ -94,11 +108,17 @@ An alternative to this is the continuous wavelet transform (CWT). A wavelet is s
 
 To read an image in, fits from astropy.io is used. fits.open is what opens the file, but to actually save it you need to specify you want the data aspect of the file saved. I used the glob toolkit in python to read all the files as once, assigning them suitable names. I saved them all in one array of size 25,100,100. I displayed an example image with specific limits, but python also does this automatically anyway [10].
 
+![example](/Images/example_image.png)
+
 By adding up all 25 images, taking the log of each pixel, and then plotting as an image, the bad pixel values are able to be seen. They are quite obvious from the figure displayed, which clarifies how to interpret the original bad pixel array.
+
+![pixel](/Images/bad_pixel_locations.png)
 
 For each array, I calculated the mean of all pixels, and looked for values that deviate greatly from the mean. These values will be where a cosmic ray has hit the pixel. Setting how far away from the mean will change how many of these pixels are removed. I set it to an amount to remove the vast majority of the cosmic burst, but not remove the actual sources. If there are one or two leftovers, they will be averaged away later on. 
 
 To actually remove the locations of these rays and bad pixels, all the coordinates of such items are set to 0. A mask is then applied to all values equal to 0, setting the value in those coordinates to be empty. All of the array indices and values of the image that haven't been masked are used as data to interpret data in the locations that have been masked. This is done using the cubic interpolation. At the desired pixel to interpolate, the surrounding neighbourhood of pixels is essentially averaged based on how close it is the desired pixel, and this value is placed in the desired pixel [11][12].
+
+![interp](/Images/example_interpolation.png)
 
 In order to subtract the sky value in each image, each image is divided by its associated mean value. This means that if you plotted the values of some selected pixels as a function of image number, the plot would be flat, with sharp high values if an object is present. If the images were not divided by their mean values, the plot would have some gradient, with higher values if an object is present. The flatter line is easier to work with. All values along this plot that deviate from the mean of the line are noted as not being the sky. Repeating this over the whole 'cube' array of 25 images stacked will allow a mask to be made over all images, the same as done for the bad pixels and cosmic rays. With the array of all images containing only sky data, the mean for each image can then be calculated and subtracted from the relevant image.
 
@@ -106,12 +126,52 @@ In order to determine the offsets of each image relative to each other, I used c
 
 To get an image off all these images, a 25x300x300 zero array was made, with the first image placed in the centre on the first plane. When the offset for an image is found, the image is copied to another plane, shifted by the offset amount relative to the first image. This is repeated for all images. The reason for the 300x300 grid is since I did not know how large the offsets would be. Once all images with offsets have been found, all 0 values are masked since they were not in the original data, and then the mean of all images stacked on top of each other is found. I then cropped the image down to make it easier to see. The final image was 127x127 in size. I did this manually but could easily be done by cropping between the maximum offsets, which I do in the next part. 
 
+![example](/Images/final_image_none.png)
+
 This final image does look good, but it has been done with integer offsets. An issue with this is that it gives a 'best' fit for images. The offsets found would realistically be non-integer values, which the above does not consider. A solution to this is to increase the resolution of each image via interpolation, so for example interpolating from a 100x100 image to a 1000x1000 array. When interpolating the images, the offsets will be larger. These offsets can then be scaled back down to give a non-integer offset.
 To do this, I first scaled all my images by some factor (currently 10), which creates a new array of all images of size 1000x1000 [16]. This is another use of cubic interpolation. Just like when removing the bad pixel and cosmic ray pixels, the local neighbourhood (4x4 in this case) is looked at for each pixel to be able to best assign a pixel value. Once this is done, the same method as before for determining offsets is done. These offsets will still be integers, but now they can be scaled down. For example, an offset of 237 in a 1000x1000 image will be 23.7 in the original image.
 
 In order to shift an image by a non-integer amount, interpolation is used again. Like from the examples given in the lecture on interpolation, if you had a centroid of a pixel that doesn’t lie exactly in the centre of a pixel, you look at the surrounding pixels and ‘distribute’ the pixels value among local pixels depending on how far they lie from the centroid. The scipy function shift can do this automatically [17]. If the 100x100 images were shifted using this method however, part of the image would be cut off since the output would still be a 100x100 image. To solve this problem, I created a 25x300x300 array of zeros (like for the first method) and put all images in the centre of each plane. This meant that when it came to shift all images, none of the original image we want is lost. After shifting all images, the whole array can be cropped. The cropping region can be found by taking the original 100x100 section and extending it by the maximum and minimum offsets in the x,y directions. Once cropped, I took the mean value of each slice, creating a 127x127 image. This is the same size as the previous final image.
 
+![example](/Images/final_image_interpolation.png)
+
 (The modules needed to run this code are: scipy, cv2, glob, astopy.io)
+
+## References
+
+[1] https://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python
+
+[2] https://victorzhou.com/blog/intro-to-cnns-part-1/
+
+[3] https://docs.opencv.org/3.4/da/d5c/tutorial_canny_detector.html
+
+[4] https://people.cs.clemson.edu/~dhouse/courses/401/notes/affines-matrices.pdf
+
+[5] https://stackoverflow.com/questions/1985856/how-to-make-a-3d-scatter-plot-in-python
+
+[6] https://medium.com/analytics-vidhya/how-to-filter-noise-with-a-low-pass-filter-python-885223e5e9b7
+
+[7] https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+
+[8] Image and Image Processing – Student Videos
+
+[9] Image and Image Processing – Student Videos – CWT
+
+[10] https://docs.astropy.org/en/stable/io/fits/
+
+[11] https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.griddata.html
+
+[12] https://stackoverflow.com/questions/37662180/interpolate-missing-values-2d-python/39596856#39596856
+
+[13] https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.correlate.html
+
+[14] https://uk.mathworks.com/help/images/registering-an-image-using-normalized-cross-correlation.html?fbclid=IwAR3KBgZt3YvYmbt93ikcF3bZ1ri9SoLfoBfqv-8moAKbxwAOQRIj9hJcGdM
+
+[15] https://math.stackexchange.com/questions/840115/correlation-coefficient-calculation
+
+[16] https://www.tutorialkart.com/opencv/python/opencv-python-resize-image/
+
+[17] https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.shift.html
 
 
 
